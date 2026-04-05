@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Control de Asistencia – Taller Mecánico</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --negro: #0a0a0a;
+    --acero: #1a2332;
+    --acero2: #243047;
+    --naranja: #f97316;
+    --naranja2: #ea6c0c;
+    --gris: #64748b;
+    --gris2: #94a3b8;
+    --blanco: #f8fafc;
+    --verde: #22c55e;
+    --rojo: #ef4444;
+    --amarillo: #eab308;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--negro);
+    color: var(--blanco);
+    min-height: 100vh;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    background: linear-gradient(135deg, var(--acero), var(--acero2));
+    border-bottom: 3px solid var(--naranja);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .logo-icon { font-size: 32px; }
+  .header-text h1 { font-size: 18px; font-weight: 800; color: var(--naranja); letter-spacing: 0.5px; }
+  .header-text p { font-size: 11px; color: var(--gris2); }
+
+  /* ===== SCREENS ===== */
+  .screen { display: none; padding: 20px; max-width: 480px; margin: 0 auto; }
+  .screen.active { display: block; }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--acero);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--naranja); color: white; }
+  .btn-primary:hover { background: var(--naranja2); }
+  .btn-secondary { background: var(--acero2); color: var(--gris2); border: 1px solid rgba(255,255,255,0.1); }
+  .btn-success { background: var(--verde); color: white; }
+  .btn-danger { background: var(--rojo); color: white; }
+  .btn-sm { padding: 8px 16px; font-size: 13px; width: auto; border-radius: 8px; }
+
+  /* ===== BADGE ===== */
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-ok { background: rgba(34,197,94,0.2); color: var(--verde); }
+  .badge-no { background: rgba(239,68,68,0.2); color: var(--rojo); }
+  .badge-warn { background: rgba(234,179,8,0.2); color: var(--amarillo); }
+
+  /* ===== CLOCK ===== */
+  #clock {
+    text-align: center;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--naranja);
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+    padding: 8px 0;
+  }
+  #fecha-actual { text-align: center; font-size: 13px; color: var(--gris2); margin-bottom: 4px; }
+
+  /* ===== STATUS WINDOW ===== */
+  .ventana-status {
+    background: var(--acero2);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  .ventana-status.open { border-left: 4px solid var(--verde); }
+  .ventana-status.closed { border-left: 4px solid var(--rojo); }
+  .ventana-status.soon { border-left: 4px solid var(--amarillo); }
+
+  /* ===== FORM ===== */
+  .form-label { font-size: 12px; color: var(--gris2); margin-bottom: 6px; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  select, input {
+    width: 100%;
+    background: var(--acero2);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--blanco);
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-size: 15px;
+    margin-bottom: 14px;
+    appearance: none;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  select:focus, input:focus { border-color: var(--naranja); }
+
+  /* ===== GEO STATUS ===== */
+  .geo-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .geo-ok { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--verde); }
+  .geo-bad { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--rojo); }
+  .geo-loading { background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); color: var(--amarillo); }
+  .geo-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: var(--verde); animation: pulse 2s infinite; }
+  .dot-red { background: var(--rojo); }
+  .dot-yellow { background: var(--amarillo); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  /* ===== SUCCESS ===== */
+  .success-icon { font-size: 72px; text-align: center; margin: 20px 0 10px; }
+  .success-name { font-size: 22px; font-weight: 800; text-align: center; color: var(--verde); }
+  .success-time { font-size: 14px; text-align: center; color: var(--gris2); margin-top: 6px; }
+
+  /* ===== ADMIN ===== */
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--gris);
+    font-weight: 700;
+    margin: 20px 0 10px;
+  }
+  .stat-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-box {
+    background: var(--acero2);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-num { font-size: 28px; font-weight: 900; }
+  .stat-lbl { font-size: 10px; color: var(--gris2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-verde .stat-num { color: var(--verde); }
+  .stat-rojo .stat-num { color: var(--rojo); }
+  .stat-naranja .stat-num { color: var(--naranja); }
+
+  .personal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+    gap: 10px;
+  }
+  .personal-row:last-child { border-bottom: none; }
+  .p-name { font-weight: 600; flex: 1; line-height: 1.3; }
+  .p-cargo { font-size: 11px; color: var(--gris2); }
+  .p-hora { font-size: 11px; color: var(--verde); margin-top: 2px; }
+
+  /* ===== MAP MODAL ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    padding: 20px;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: var(--acero);
+    border-radius: 20px;
+    padding: 24px;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; color: var(--naranja); }
+
+  /* ===== PIN INPUT ===== */
+  .pin-display {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 16px 0;
+  }
+  .pin-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.2s;
+  }
+  .pin-dot.filled { background: var(--naranja); }
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .num-btn {
+    padding: 18px;
+    border: none;
+    border-radius: 14px;
+    background: var(--acero2);
+    color: var(--blanco);
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .num-btn:active { background: var(--naranja); transform: scale(0.94); }
+  .num-del { background: rgba(239,68,68,0.15); color: var(--rojo); }
+  .num-ok { background: var(--naranja); color: white; grid-column: span 1; }
+
+  /* ===== TABS ===== */
+  .tabs { display: flex; gap: 0; margin-bottom: 0; border-radius: 12px; overflow: hidden; background: var(--acero2); }
+  .tab-btn { flex: 1; padding: 12px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; background: transparent; color: var(--gris2); transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tab-btn.active { background: var(--naranja); color: white; }
+
+  .tab-panel { display: none; padding-top: 16px; }
+  .tab-panel.active { display: block; }
+
+  .group-tab {
+    background: var(--acero2);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.08);
+    display: inline-block;
+    margin: 4px;
+    color: var(--gris2);
+  }
+  .group-tab.active { background: var(--naranja); color: white; border-color: var(--naranja); }
+
+  .nav-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    background: var(--acero);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    z-index: 50;
+  }
+  .nav-btn {
+    flex: 1;
+    padding: 14px 0 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gris);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .nav-btn .nav-icon { font-size: 20px; }
+  .nav-btn.active { color: var(--naranja); }
+
+  .pb { padding-bottom: 80px; }
+
+  /* ===== LOCATION CONFIG ===== */
+  .location-display {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--gris2);
+    background: var(--negro);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-top: 8px;
+    word-break: break-all;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">🔧</div>
+  <div class="header-text">
+    <h1>TALLER MECÁNICO</h1>
+    <p>Control de Asistencia · Mantenimiento / Automotriz</p>
+  </div>
+</header>
+
+<!-- ========== SCREEN: REGISTRO ========== -->
+<div class="screen active pb" id="screen-registro">
+  <div class="card" style="margin-top:16px;">
+    <div id="fecha-actual"></div>
+    <div id="clock">--:--:--</div>
+    <div id="ventana-info" class="ventana-status"></div>
+  </div>
+
+  <div class="card">
+    <div id="geo-status-box" class="geo-status geo-loading">
+      <div class="geo-dot dot-yellow"></div>
+      <span id="geo-texto">Verificando ubicación...</span>
+    </div>
+
+    <label class="form-label">Seleccionar Grupo</label>
+    <select id="sel-grupo">
+      <option value="">-- Seleccione su grupo --</option>
+      <option value="ORT">PERSONAL ORT</option>
+      <option value="ORF">PERSONAL ORF</option>
+      <option value="ORD">PERSONAL ORD</option>
+      <option value="EVT">EVENTUALES</option>
+    </select>
+
+    <label class="form-label">Seleccionar Nombre</label>
+    <select id="sel-nombre" disabled>
+      <option value="">-- Seleccione su nombre --</option>
+    </select>
+
+    <button class="btn btn-primary" id="btn-registrar" disabled onclick="iniciarRegistro()">
+      ✅ REGISTRAR ASISTENCIA
+    </button>
+  </div>
+</div>
+
+<!-- ========== SCREEN: ADMIN ========== -->
+<div class="screen pb" id="screen-admin">
+  <div style="margin-top:16px;">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('resumen')">Resumen</button>
+      <button class="tab-btn" onclick="switchTab('detalle')">Personal</button>
+      <button class="tab-btn" onclick="switchTab('config')">Config</button>
+    </div>
+
+    <!-- TAB RESUMEN -->
+    <div class="tab-panel active" id="tab-resumen">
+      <div id="admin-fecha" style="font-size:13px;color:var(--gris2);margin-bottom:12px;"></div>
+      <div class="stat-row">
+        <div class="stat-box stat-verde"><div class="stat-num" id="st-presentes">0</div><div class="stat-lbl">Presentes</div></div>
+        <div class="stat-box stat-rojo"><div class="stat-num" id="st-ausentes">0</div><div class="stat-lbl">Ausentes</div></div>
+        <div class="stat-box stat-naranja"><div class="stat-num" id="st-total">0</div><div class="stat-lbl">Total</div></div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="section-title" style="margin:0;">REGISTROS HOY</div>
+        <button class="btn btn-success btn-sm" onclick="exportarExcel()">📥 Excel</button>
+      </div>
+      <div id="lista-presentes"></div>
+    </div>
+
+    <!-- TAB DETALLE -->
+    <div class="tab-panel" id="tab-detalle">
+      <div style="margin-bottom:12px;">
+        <span class="group-tab active" onclick="filterGroup(this,'ORT')">ORT</span>
+        <span class="group-tab" onclick="filterGroup(this,'ORF')">ORF</span>
+        <span class="group-tab" onclick="filterGroup(this,'ORD')">ORD</span>
+        <span class="group-tab" onclick="filterGroup(this,'EVT')">EVT</span>
+      </div>
+      <div id="lista-detalle"></div>
+    </div>
+
+    <!-- TAB CONFIG -->
+    <div class="tab-panel" id="tab-config">
+      <div class="section-title">Ubicación del Taller</div>
+      <div class="card">
+        <p style="font-size:13px;color:var(--gris2);margin-bottom:14px;">Captura tu ubicación actual como punto de referencia del taller. Los empleados deben estar a máx. 50 metros.</p>
+        <div id="config-loc-display" class="location-display">No configurada</div>
+        <br>
+        <button class="btn btn-primary" onclick="capturarUbicacion()">📍 Capturar mi Ubicación Actual</button>
+        <br>
+        <button class="btn btn-secondary" style="margin-top:10px;" onclick="testDistancia()">🧪 Probar mi Distancia Actual</button>
+        <div id="test-dist" style="font-size:13px;color:var(--gris2);margin-top:10px;"></div>
+      </div>
+
+      <div class="section-title">Ventana de Registro</div>
+      <div class="card">
+        <p style="font-size:13px;color:var(--gris2);margin-bottom:14px;">Horario actual: 6:50 AM – 7:10 AM (sin registro = FALTA)</p>
+        <label class="form-label">Hora Inicio</label>
+        <input type="time" id="cfg-inicio" value="06:50">
+        <label class="form-label">Hora Fin</label>
+        <input type="time" id="cfg-fin" value="07:10">
+        <button class="btn btn-primary" onclick="guardarHorario()">💾 Guardar Horario</button>
+      </div>
+
+      <div class="section-title">Seguridad</div>
+      <div class="card">
+        <p style="font-size:13px;color:var(--gris2);margin-bottom:14px;">PIN actual del panel de administración</p>
+        <label class="form-label">Nuevo PIN (4 dígitos)</label>
+        <input type="password" id="nuevo-pin" maxlength="4" pattern="[0-9]*" inputmode="numeric" placeholder="••••">
+        <button class="btn btn-primary" onclick="cambiarPin()">🔒 Cambiar PIN</button>
+      </div>
+
+      <div class="section-title">Datos</div>
+      <div class="card">
+        <button class="btn btn-danger" onclick="limpiarDiaDatos()">🗑️ Limpiar registros del día</button>
+        <br>
+        <button class="btn btn-secondary" style="margin-top:10px;" onclick="exportarExcel()">📥 Exportar Excel mes actual</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PIN MODAL ===== -->
+<div class="modal-overlay" id="pin-modal">
+  <div class="modal-box">
+    <div class="modal-title">🔐 Acceso Administrador</div>
+    <p style="font-size:13px;color:var(--gris2);margin-bottom:12px;">Ingresa el PIN de administración</p>
+    <div class="pin-display">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div id="pin-error" style="color:var(--rojo);font-size:12px;text-align:center;min-height:18px;"></div>
+    <div class="numpad">
+      <button class="num-btn" onclick="pinKey('1')">1</button>
+      <button class="num-btn" onclick="pinKey('2')">2</button>
+      <button class="num-btn" onclick="pinKey('3')">3</button>
+      <button class="num-btn" onclick="pinKey('4')">4</button>
+      <button class="num-btn" onclick="pinKey('5')">5</button>
+      <button class="num-btn" onclick="pinKey('6')">6</button>
+      <button class="num-btn" onclick="pinKey('7')">7</button>
+      <button class="num-btn" onclick="pinKey('8')">8</button>
+      <button class="num-btn" onclick="pinKey('9')">9</button>
+      <button class="num-btn num-del" onclick="pinDel()">⌫</button>
+      <button class="num-btn" onclick="pinKey('0')">0</button>
+      <button class="num-btn num-ok" onclick="pinOk()">OK</button>
+    </div>
+    <button class="btn btn-secondary" style="margin-top:14px;" onclick="cerrarPinModal()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ===== SUCCESS MODAL ===== -->
+<div class="modal-overlay" id="success-modal">
+  <div class="modal-box" style="text-align:center;">
+    <div class="success-icon">✅</div>
+    <div class="success-name" id="suc-name"></div>
+    <div class="success-time" id="suc-time"></div>
+    <div style="margin:14px 0;padding:12px;background:rgba(34,197,94,0.1);border-radius:10px;border:1px solid rgba(34,197,94,0.3);">
+      <div style="font-size:12px;color:var(--gris2);">Tu asistencia fue registrada</div>
+    </div>
+    <button class="btn btn-success" onclick="cerrarSuccess()">Cerrar</button>
+  </div>
+</div>
+
+<!-- ===== NAV BOTTOM ===== -->
+<nav class="nav-bottom">
+  <button class="nav-btn active" id="nav-registro" onclick="showScreen('registro')">
+    <span class="nav-icon">🖊️</span>Registro
+  </button>
+  <button class="nav-btn" id="nav-admin" onclick="pedirPin()">
+    <span class="nav-icon">🛡️</span>Admin
+  </button>
+</nav>
+
+<script>
+// ============================================================
+//  DATOS DEL PERSONAL
+// ============================================================
+const PERSONAL = {
+  ORT: [
+    { nombre: "CALDERON JIMENEZ JORGE PATRICIO", cargo: "SUPERVISOR DE MANTENIMIENTO DE EQUIPOS" },
+    { nombre: "CAMACHO TRUJILLO JHERSON OSWALDO", cargo: "AYUDANTE DE MECANICA AUTOMOTRIZ" },
+    { nombre: "CORREA JIMENEZ HENRY DANIEL", cargo: "TÉCNICO MECÁNICO" },
+    { nombre: "CRUZ TROYA MARCO VINICIO", cargo: "AYUDANTE DE MECANICA AUTOMOTRIZ" },
+    { nombre: "DELGADO DELGADO ESMILDO EUDALDO", cargo: "VULCANIZADOR" },
+    { nombre: "GUALAVISI IMBAQUINGO JUAN CARLOS", cargo: "TÉCNICO HIDRAÚLICO" },
+    { nombre: "JITALA GUALAVISI JEFFERSON PATRICIO", cargo: "TÉCNICO HIDRAÚLICO" },
+    { nombre: "LEON NARVAEZ JORGE LUIS", cargo: "SUPERVISOR MECÁNICO AUTOMOTRIZ" },
+    { nombre: "LOOR VILLACIS LUIS LEANDRO", cargo: "AYUDANTE HIDRAULICO" },
+    { nombre: "MANOTOA LALALEO VICTOR HUGO", cargo: "TÉCNICO MECÁNICO" },
+    { nombre: "MARCILLO MORAN JORGE LUIS", cargo: "ELECTROMECÁNICO" },
+    { nombre: "MILES VARGAS WILLAM JOSE", cargo: "TÉCNICO MECÁNICO" },
+    { nombre: "ORTIZ MUÑOZ JEFFERSON ALIRIO", cargo: "COORDINADOR DE MANTENIMIENTO DE EQUIPOS" },
+    { nombre: "PILAQUINGA FLORES DIEGO ORLANDO", cargo: "ELECTROMECÁNICO" },
+    { nombre: "LAMAR LOYOLA KEVIN LEONARDO", cargo: "AYUDANTE DE MECANICA AUTOMOTRIZ" },
+    { nombre: "ROSERO PATIÑO ROMEL DARWIN", cargo: "VULCANIZADOR" },
+    { nombre: "SAMANIEGO MORENO JORGE MIGUEL", cargo: "LOGISTICO AUTOMOTRIZ" },
+    { nombre: "TACURI GUEVARA DARIO GABRIEL", cargo: "SUPERVISOR DE MANTENIMIENTO DE EQUIPOS" },
+    { nombre: "TANDAZO PEDRERA EDWIN RAMIRO", cargo: "TÉCNICO HIDRAÚLICO" }
+  ],
+  ORF: [
+    { nombre: "ERAZO OLIVEROS CRISTIAN DANILO", cargo: "AYUDANTE MECANICO" },
+    { nombre: "MERIZALDE OTUNADIONISIO ALONSO", cargo: "AYUDANTE MECANICO" },
+    { nombre: "PINARGOTE MACIAS LUIS ALFREDO", cargo: "MECANICO" },
+    { nombre: "RIERA ANDRADE HECTOR HORACIO", cargo: "SUPERVISOR MECANICO" },
+    { nombre: "SAILEMA FIGUEROA PATRICIO IVAN", cargo: "ELECTROMECANICO" }
+  ],
+  ORD: [
+    { nombre: "GUAMAN DANIEL", cargo: "SUP. MANT. AUTOMOTRIZ" }
+  ],
+  EVT: [
+    { nombre: "SALTOS GONZALEZ DARIEL ALFREDO", cargo: "ELECTROMECANICO" },
+    { nombre: "PEÑAFIEL QUIZHPE JHON BRYAN", cargo: "ELECTROMECANICO" }
+  ]
+};
+
+const GRUPOS_LABEL = { ORT: "PERSONAL ORT", ORF: "PERSONAL ORF", ORD: "PERSONAL ORD", EVT: "EVENTUALES" };
+
+// ============================================================
+//  ESTADO
+// ============================================================
+let TALLER_LAT = null, TALLER_LNG = null;
+let MI_LAT = null, MI_LNG = null;
+let pinBuffer = "";
+let ADMIN_PIN = "1234"; // PIN por defecto
+let HORA_INICIO = "06:50";
+let HORA_FIN = "07:10";
+let geoOk = false;
+let dentroDeTaller = false;
+
+const STORAGE_KEY_REGISTROS = "asistencia_registros";
+const STORAGE_KEY_TALLER = "taller_ubicacion";
+const STORAGE_KEY_PIN = "admin_pin";
+const STORAGE_KEY_HORARIO = "horario_config";
+
+// Cargar config guardada
+function cargarConfig() {
+  const loc = localStorage.getItem(STORAGE_KEY_TALLER);
+  if (loc) { const l = JSON.parse(loc); TALLER_LAT = l.lat; TALLER_LNG = l.lng; }
+  const pin = localStorage.getItem(STORAGE_KEY_PIN);
+  if (pin) ADMIN_PIN = pin;
+  const hor = localStorage.getItem(STORAGE_KEY_HORARIO);
+  if (hor) { const h = JSON.parse(hor); HORA_INICIO = h.inicio; HORA_FIN = h.fin; }
+}
+
+// ============================================================
+//  RELOJ Y VENTANA
+// ============================================================
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('fecha-actual').textContent =
+    `${dias[now.getDay()]}, ${now.getDate()} de ${meses[now.getMonth()]} ${now.getFullYear()}`;
+
+  updateVentana(now);
+  checkBtnRegistrar();
+}
+
+function toMinutes(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function ventanaAbierta(now) {
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= toMinutes(HORA_INICIO) && cur <= toMinutes(HORA_FIN);
+}
+
+function updateVentana(now) {
+  const box = document.getElementById('ventana-info');
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const ini = toMinutes(HORA_INICIO);
+  const fin = toMinutes(HORA_FIN);
+
+  if (cur < ini) {
+    const diff = ini - cur;
+    box.className = 'ventana-status soon';
+    box.innerHTML = `⏰ Ventana abre en ${diff} minuto${diff!==1?'s':''} (${HORA_INICIO} – ${HORA_FIN})`;
+  } else if (cur >= ini && cur <= fin) {
+    box.className = 'ventana-status open';
+    box.innerHTML = `🟢 <strong>VENTANA ABIERTA</strong> · Regístrate hasta las ${HORA_FIN}`;
+  } else {
+    box.className = 'ventana-status closed';
+    box.innerHTML = `🔴 Ventana cerrada · Próxima apertura mañana a las ${HORA_INICIO}`;
+  }
+}
+
+// ============================================================
+//  GEOLOCALIZACIÓN
+// ============================================================
+function iniciarGeo() {
+  if (!navigator.geolocation) {
+    setGeoStatus('bad', '📵 Geolocalización no soportada en este navegador');
+    return;
+  }
+  navigator.geolocation.watchPosition(
+    pos => {
+      MI_LAT = pos.coords.latitude;
+      MI_LNG = pos.coords.longitude;
+      geoOk = true;
+      evaluarDistancia();
+    },
+    err => {
+      geoOk = false;
+      dentroDeTaller = false;
+      setGeoStatus('bad', '❌ Sin permiso de ubicación. Actívala en tu navegador.');
+      checkBtnRegistrar();
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+  );
+}
+
+function setGeoStatus(type, msg) {
+  const box = document.getElementById('geo-status-box');
+  const txt = document.getElementById('geo-texto');
+  box.className = 'geo-status';
+  if (type === 'ok') {
+    box.classList.add('geo-ok');
+    box.querySelector('.geo-dot').className = 'geo-dot dot-green';
+  } else if (type === 'bad') {
+    box.classList.add('geo-bad');
+    box.querySelector('.geo-dot').className = 'geo-dot dot-red';
+  } else {
+    box.classList.add('geo-loading');
+    box.querySelector('.geo-dot').className = 'geo-dot dot-yellow';
+  }
+  txt.textContent = msg;
+}
+
+function evaluarDistancia() {
+  if (!TALLER_LAT || !TALLER_LNG) {
+    setGeoStatus('warn', '⚠️ El coordinador no ha configurado la ubicación del taller aún');
+    dentroDeTaller = false;
+    checkBtnRegistrar();
+    return;
+  }
+  const dist = calcDistancia(MI_LAT, MI_LNG, TALLER_LAT, TALLER_LNG);
+  if (dist <= 50) {
+    setGeoStatus('ok', `✅ En rango del taller (${Math.round(dist)}m de distancia)`);
+    dentroDeTaller = true;
+  } else {
+    setGeoStatus('bad', `🚫 Fuera de rango · ${Math.round(dist)}m del taller (máx. 50m)`);
+    dentroDeTaller = false;
+  }
+  checkBtnRegistrar();
+}
+
+function calcDistancia(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ============================================================
+//  SELECTOR PERSONAL
+// ============================================================
+document.getElementById('sel-grupo').addEventListener('change', function() {
+  const grp = this.value;
+  const sel = document.getElementById('sel-nombre');
+  sel.innerHTML = '<option value="">-- Seleccione su nombre --</option>';
+  if (grp && PERSONAL[grp]) {
+    PERSONAL[grp].forEach((p, i) => {
+      const opt = document.createElement('option');
+      opt.value = `${grp}::${i}`;
+      opt.textContent = p.nombre;
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+  } else {
+    sel.disabled = true;
+  }
+  checkBtnRegistrar();
+});
+
+document.getElementById('sel-nombre').addEventListener('change', checkBtnRegistrar);
+
+function checkBtnRegistrar() {
+  const btn = document.getElementById('btn-registrar');
+  const nombre = document.getElementById('sel-nombre').value;
+  const now = new Date();
+  const puede = nombre && dentroDeTaller && ventanaAbierta(now) && !yaRegistrado(nombre);
+  btn.disabled = !puede;
+
+  if (nombre && yaRegistrado(nombre)) {
+    btn.textContent = '✓ Ya registrado hoy';
+    btn.style.opacity = '0.5';
+  } else {
+    btn.textContent = '✅ REGISTRAR ASISTENCIA';
+    btn.style.opacity = puede ? '1' : '0.5';
+  }
+}
+
+function yaRegistrado(key) {
+  const regs = getRegistros();
+  const hoy = fechaHoy();
+  return regs.some(r => r.key === key && r.fecha === hoy);
+}
+
+// ============================================================
+//  REGISTRO
+// ============================================================
+function iniciarRegistro() {
+  const val = document.getElementById('sel-nombre').value;
+  if (!val) return;
+  const [grp, idx] = val.split('::');
+  const persona = PERSONAL[grp][parseInt(idx)];
+  const now = new Date();
+
+  const registro = {
+    key: val,
+    grupo: grp,
+    nombre: persona.nombre,
+    cargo: persona.cargo,
+    fecha: fechaHoy(),
+    hora: horaActual(now),
+    ts: now.toISOString(),
+    lat: MI_LAT,
+    lng: MI_LNG
+  };
+
+  const regs = getRegistros();
+  regs.push(registro);
+  localStorage.setItem(STORAGE_KEY_REGISTROS, JSON.stringify(regs));
+
+  // Mostrar success
+  document.getElementById('suc-name').textContent = persona.nombre;
+  document.getElementById('suc-time').textContent = `Registrado a las ${horaActual(now)} · ${fechaHoy()}`;
+  document.getElementById('success-modal').classList.add('show');
+
+  // Reset selector
+  document.getElementById('sel-grupo').value = '';
+  document.getElementById('sel-nombre').innerHTML = '<option value="">-- Seleccione su nombre --</option>';
+  document.getElementById('sel-nombre').disabled = true;
+  checkBtnRegistrar();
+}
+
+function cerrarSuccess() {
+  document.getElementById('success-modal').classList.remove('show');
+}
+
+// ============================================================
+//  UTILS FECHA / HORA
+// ============================================================
+function fechaHoy() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+}
+
+function horaActual(d) {
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function getRegistros() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY_REGISTROS) || '[]');
+}
+
+// ============================================================
+//  SCREENS & NAV
+// ============================================================
+let adminUnlocked = false;
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+  if (name === 'admin') refreshAdmin();
+}
+
+function pedirPin() {
+  if (adminUnlocked) { showScreen('admin'); return; }
+  pinBuffer = '';
+  updatePinDots();
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-modal').classList.add('show');
+}
+
+function cerrarPinModal() {
+  document.getElementById('pin-modal').classList.remove('show');
+}
+
+function pinKey(d) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += d;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(pinOk, 120);
+}
+
+function pinDel() { pinBuffer = pinBuffer.slice(0,-1); updatePinDots(); }
+
+function updatePinDots() {
+  for (let i=0; i<4; i++) {
+    document.getElementById('pd'+i).className = 'pin-dot' + (i < pinBuffer.length ? ' filled' : '');
+  }
+}
+
+function pinOk() {
+  if (pinBuffer === ADMIN_PIN) {
+    adminUnlocked = true;
+    cerrarPinModal();
+    showScreen('admin');
+  } else {
+    document.getElementById('pin-error').textContent = '❌ PIN incorrecto';
+    pinBuffer = '';
+    updatePinDots();
+    setTimeout(() => document.getElementById('pin-error').textContent = '', 2000);
+  }
+}
+
+// ============================================================
+//  ADMIN – REFRESH
+// ============================================================
+function refreshAdmin() {
+  const hoy = fechaHoy();
+  const regs = getRegistros().filter(r => r.fecha === hoy);
+
+  // Calcular total de personal
+  let total = 0;
+  Object.values(PERSONAL).forEach(g => total += g.length);
+
+  document.getElementById('admin-fecha').textContent = `Hoy: ${hoy}`;
+  document.getElementById('st-presentes').textContent = regs.length;
+  document.getElementById('st-ausentes').textContent = total - regs.length;
+  document.getElementById('st-total').textContent = total;
+
+  // Lista presentes
+  const lista = document.getElementById('lista-presentes');
+  if (regs.length === 0) {
+    lista.innerHTML = '<div style="text-align:center;color:var(--gris);padding:20px;font-size:13px;">Sin registros hoy</div>';
+  } else {
+    lista.innerHTML = regs.map(r => `
+      <div class="personal-row">
+        <div>
+          <div class="p-name">${r.nombre}</div>
+          <div class="p-cargo">${GRUPOS_LABEL[r.grupo]}</div>
+          <div class="p-hora">✓ ${r.hora}</div>
+        </div>
+        <span class="badge badge-ok">PRESENTE</span>
+      </div>
+    `).join('');
+  }
+
+  // Config display
+  const cfg = document.getElementById('config-loc-display');
+  if (TALLER_LAT) {
+    cfg.textContent = `Lat: ${TALLER_LAT.toFixed(6)} | Lng: ${TALLER_LNG.toFixed(6)}`;
+  }
+
+  // Inputs horario
+  document.getElementById('cfg-inicio').value = HORA_INICIO;
+  document.getElementById('cfg-fin').value = HORA_FIN;
+
+  refreshDetalle('ORT');
+}
+
+let currentGroupFilter = 'ORT';
+
+function filterGroup(el, grp) {
+  document.querySelectorAll('.group-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentGroupFilter = grp;
+  refreshDetalle(grp);
+}
+
+function refreshDetalle(grp) {
+  const hoy = fechaHoy();
+  const regs = getRegistros().filter(r => r.fecha === hoy);
+  const lista = document.getElementById('lista-detalle');
+
+  const personal = PERSONAL[grp] || [];
+  lista.innerHTML = personal.map((p, i) => {
+    const key = `${grp}::${i}`;
+    const reg = regs.find(r => r.key === key);
+    return `
+      <div class="personal-row">
+        <div>
+          <div class="p-name">${p.nombre}</div>
+          <div class="p-cargo">${p.cargo}</div>
+          ${reg ? `<div class="p-hora">✓ ${reg.hora}</div>` : ''}
+        </div>
+        <span class="badge ${reg ? 'badge-ok' : 'badge-no'}">${reg ? 'PRESENTE' : 'AUSENTE'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================
+//  TABS ADMIN
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    const tabs = ['resumen','detalle','config'];
+    b.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-'+name);
+  });
+  if (name === 'detalle') refreshDetalle(currentGroupFilter);
+}
+
+// ============================================================
+//  CONFIG
+// ============================================================
+function capturarUbicacion() {
+  if (!geoOk || !MI_LAT) {
+    alert('Activa la ubicación primero'); return;
+  }
+  TALLER_LAT = MI_LAT; TALLER_LNG = MI_LNG;
+  localStorage.setItem(STORAGE_KEY_TALLER, JSON.stringify({ lat: TALLER_LAT, lng: TALLER_LNG }));
+  document.getElementById('config-loc-display').textContent =
+    `Lat: ${TALLER_LAT.toFixed(6)} | Lng: ${TALLER_LNG.toFixed(6)}`;
+  alert(`✅ Ubicación del taller guardada:\nLat: ${TALLER_LAT.toFixed(6)}\nLng: ${TALLER_LNG.toFixed(6)}`);
+  evaluarDistancia();
+}
+
+function testDistancia() {
+  if (!MI_LAT) { document.getElementById('test-dist').textContent = 'Sin ubicación actual'; return; }
+  if (!TALLER_LAT) { document.getElementById('test-dist').textContent = 'Taller no configurado'; return; }
+  const d = calcDistancia(MI_LAT, MI_LNG, TALLER_LAT, TALLER_LNG);
+  document.getElementById('test-dist').textContent = `Tu distancia al taller: ${Math.round(d)} metros`;
+}
+
+function guardarHorario() {
+  HORA_INICIO = document.getElementById('cfg-inicio').value;
+  HORA_FIN = document.getElementById('cfg-fin').value;
+  localStorage.setItem(STORAGE_KEY_HORARIO, JSON.stringify({ inicio: HORA_INICIO, fin: HORA_FIN }));
+  alert(`✅ Horario guardado: ${HORA_INICIO} – ${HORA_FIN}`);
+}
+
+function cambiarPin() {
+  const np = document.getElementById('nuevo-pin').value;
+  if (np.length !== 4 || isNaN(np)) { alert('El PIN debe ser de 4 dígitos'); return; }
+  ADMIN_PIN = np;
+  localStorage.setItem(STORAGE_KEY_PIN, ADMIN_PIN);
+  document.getElementById('nuevo-pin').value = '';
+  alert('✅ PIN actualizado');
+}
+
+function limpiarDiaDatos() {
+  if (!confirm('¿Seguro que quieres borrar todos los registros de hoy?')) return;
+  const hoy = fechaHoy();
+  const regs = getRegistros().filter(r => r.fecha !== hoy);
+  localStorage.setItem(STORAGE_KEY_REGISTROS, JSON.stringify(regs));
+  refreshAdmin();
+  alert('Registros del día eliminados');
+}
+
+// ============================================================
+//  EXPORTAR EXCEL
+// ============================================================
+function exportarExcel() {
+  const regs = getRegistros();
+  const hoy = new Date();
+  const anio = hoy.getFullYear();
+  const mes = hoy.getMonth();
+  const meses = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const diasEnMes = new Date(anio, mes+1, 0).getDate();
+
+  const wb = XLSX.utils.book_new();
+
+  Object.keys(PERSONAL).forEach(grp => {
+    const personal = PERSONAL[grp];
+    const grpLabel = GRUPOS_LABEL[grp];
+
+    // Filtrar registros de este mes para este grupo
+    const regsGrp = regs.filter(r => r.grupo === grp && r.fecha.startsWith(`${anio}-${String(mes+1).padStart(2,'0')}`));
+
+    const ws_data = [];
+
+    // Cabecera
+    ws_data.push(['', '', '', '', '', '', 'CONTROL DE ASISTENCIA', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Código: ORT-GTH-PRO-08-F1']);
+    ws_data.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Fecha de Revisión: 01/04/2025']);
+    ws_data.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Versión: 01']);
+    ws_data.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'Página: 1 de 1']);
+    ws_data.push([]);
+    ws_data.push(['DATOS DEL REPORTE']);
+    ws_data.push([]);
+    ws_data.push(['DEPARTAMENTO / AREA', '', 'MANTENIMIENTO / AUTOMOTRIZ, HIDRAULICO', '', '', '', '', 'RESPONSABLE DE DEPARTAMENTO /AREA:', '', '', '', 'JEFFERSON ORTIZ / DANIEL GUAMAN']);
+    ws_data.push(['LUGAR DE TRABAJO', '', 'BASE', '', '', '', '', 'PERIODO :', '', '', '', meses[mes], '', '', '', 'AÑO:', '', anio]);
+    ws_data.push([]);
+
+    // Header tabla
+    const dayHeaders1 = [];
+    const dayHeaders2 = [];
+    for (let d = 1; d <= diasEnMes; d++) {
+      const fecha = new Date(anio, mes, d);
+      const dow = ['D','L','M','M','J','V','S'][fecha.getDay()];
+      dayHeaders1.push(dow);
+      dayHeaders2.push(d);
+    }
+
+    ws_data.push(['ITEM', 'NOMINA', 'CARGO', 'TOTAL DIAS', '', '', '', '', '', '', '', '', '', 'HORAS', 'OBSERVACION', ...dayHeaders1]);
+    ws_data.push(['', '', '', 'T', 'D', 'EX', 'P', 'V', 'E', 'M/P', 'F', '', '', 'EXTRAS', '', ...dayHeaders2]);
+    ws_data.push([]);
+
+    // Filas personal
+    personal.forEach((p, idx) => {
+      const row = [idx+1, p.nombre, p.cargo];
+      let presentes = 0;
+      const diasRow = [];
+
+      for (let d = 1; d <= diasEnMes; d++) {
+        const fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const fecha = new Date(anio, mes, d);
+        const esDomingo = fecha.getDay() === 0;
+        if (esDomingo) {
+          diasRow.push('D');
+        } else {
+          const key = `${grp}::${idx}`;
+          const reg = regsGrp.find(r => r.key === key && r.fecha === fechaStr);
+          if (reg) { diasRow.push('T'); presentes++; }
+          else { diasRow.push('F'); }
+        }
+      }
+
+      const faltas = diasRow.filter(x=>x==='F').length;
+      row.push(presentes, 0, 0, 0, 0, 0, 0, faltas, '', '', 0, '', ...diasRow);
+      ws_data.push(row);
+    });
+
+    ws_data.push([]);
+    ws_data.push(['TOTALES']);
+    ws_data.push([]);
+    ws_data.push(['Indicaciones para llenar el cuadro de control de dias trabajados en el mes.']);
+    ws_data.push(['T', 'DIA TRABAJO', '', '', '', '', 'Nombre', '', '', 'Firma', '', '', 'Notas informativas']);
+    ws_data.push(['D', 'DESCANSO DE JORNADA', '', '', '', 'Elaborado por:', '', 'DANIEL GUAMAN']);
+    ws_data.push(['EX', 'DIA EXTRA', '', '', '', '', '', '']);
+    ws_data.push(['V', 'VACACIONES ANUALES', '', '', '', 'Recibido y revisado Por:']);
+    ws_data.push(['P', 'PERMISOS (ESTUDIOS, CALAMIDAD, ASUNTOS PERSONALES)']);
+    ws_data.push(['E', 'ENFERMEDAD', '', '', '', 'Aprobado Por']);
+    ws_data.push(['M/P', 'MATERNIDAD / PATERNIDAD']);
+    ws_data.push(['F', 'FALTA']);
+
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+    // Anchos columnas
+    ws['!cols'] = [
+      {wch:6},{wch:38},{wch:36},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:8},{wch:24},
+      ...Array(diasEnMes).fill({wch:4})
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, grpLabel.substring(0,31));
+  });
+
+  // Hoja resumen del día
+  const hoyStr = fechaHoy();
+  const regsHoy = regs.filter(r => r.fecha === hoyStr);
+  const resumen = [
+    ['RESUMEN DE ASISTENCIA DEL DÍA'],
+    [`Fecha: ${hoyStr}`],
+    [],
+    ['GRUPO', 'NOMBRE', 'CARGO', 'HORA REGISTRO', 'ESTADO']
+  ];
+
+  let totalPersonal = 0;
+  Object.keys(PERSONAL).forEach(grp => {
+    PERSONAL[grp].forEach((p, idx) => {
+      totalPersonal++;
+      const key = `${grp}::${idx}`;
+      const reg = regsHoy.find(r => r.key === key);
+      resumen.push([GRUPOS_LABEL[grp], p.nombre, p.cargo, reg ? reg.hora : '-', reg ? 'PRESENTE' : 'FALTA']);
+    });
+  });
+
+  resumen.push([]);
+  resumen.push(['Total Personal', totalPersonal]);
+  resumen.push(['Presentes', regsHoy.length]);
+  resumen.push(['Ausentes', totalPersonal - regsHoy.length]);
+
+  const wsR = XLSX.utils.aoa_to_sheet(resumen);
+  wsR['!cols'] = [{wch:20},{wch:38},{wch:32},{wch:16},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, wsR, 'Resumen Hoy');
+
+  const nombre = `Asistencia_${meses[mes]}_${anio}.xlsx`;
+  XLSX.writeFile(wb, nombre);
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+cargarConfig();
+setInterval(updateClock, 1000);
+updateClock();
+iniciarGeo();
+</script>
+</body>
+</html>
